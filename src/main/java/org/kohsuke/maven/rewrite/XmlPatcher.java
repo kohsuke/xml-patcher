@@ -40,8 +40,26 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Represents the modified xml file. Note: implementations of the StAX API (JSR-173) are not good round-trip rewriting
- * <b>while</b> keeping all unchanged bytes in the file as is.  For example, the StAX API specifies that <code>CR</code>
+ * High-fidelity XML patch editor.
+ *
+ * <p>
+ * {@link XmlPatcher} uses StAX API and provides an API for micro-patching XML file
+ * (such as changing text, adding/removing a tag, etc.) without altering the original XML file unnecessarily
+ * as much as possible. For example, comments, whitespaces between attributes, indentation, and so on are kept intact.
+ *
+ * <p>
+ * The patching of XML file is primarily done via {@link Mark}, which represents a range of text in XML.
+ * {@link Mark} can be created from {@link #mark()}, or by combining existing marks (such as {@link Mark#to(Mark)}.
+ * The caller can retrieve the text inside {@link Mark} and replace them.
+ *
+ * <p>
+ * Active {@link Mark}s are tracked by {@link XmlPatcher} so that when one mark changes its content, the positions
+ * of the other marks are updated to stick to the text they are supposed to be pointing. Because of this, the caller
+ * should stick to a bounded number of marks, or use {@link Mark#clear()} to throw away unneeded marks.
+ *
+ * <p>
+ * While this class intends to provide high-fidelity and preserves as much of the original XML as possible,
+ * the StAX API (JSR-173) has inherent limitation. For example, the StAX API specifies that <code>CR</code>
  * characters will be stripped.  Current implementations do not keep &quot; and &apos; characters consistent.
  *
  * @author Stephen Connolly

@@ -3,6 +3,13 @@ package org.kohsuke.maven.rewrite;
 import javax.xml.stream.events.StartElement;
 
 /**
+ * Path representation from the root element.
+ *
+ * <p>
+ * As {@link XmlPatcher} parses through XML, the current location is accessible from {@link XmlPatcher#getPath()}.
+ * Each {@link XmlPath} is immutable, and every element in XML gets an unique instance. This allows visitors
+ * to hold on to the reference and match up start/end tags more easily.
+ *
  * @author Kohsuke Kawaguchi
  */
 public class XmlPath {

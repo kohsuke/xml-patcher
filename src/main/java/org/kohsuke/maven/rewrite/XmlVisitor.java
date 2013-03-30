@@ -1,7 +1,10 @@
 package org.kohsuke.maven.rewrite;
 
 /**
+ * Call back interface to walk over the XML document (and edit it.)
+ *
  * @author Kohsuke Kawaguchi
+ * @see XmlPatcher#scan(XmlVisitor)
  */
 public abstract class XmlVisitor {
     private XmlPatcher patcher;
