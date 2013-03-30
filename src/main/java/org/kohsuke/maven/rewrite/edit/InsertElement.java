@@ -1,6 +1,7 @@
 package org.kohsuke.maven.rewrite.edit;
 
 import com.google.common.base.Predicate;
+import org.kohsuke.maven.rewrite.Mark;
 import org.kohsuke.maven.rewrite.XmlPath;
 import org.kohsuke.maven.rewrite.XmlScanner;
 import org.kohsuke.maven.rewrite.XmlVisitor;
@@ -23,10 +24,13 @@ public abstract class InsertElement extends XmlVisitor {
     private XmlPath lastStart;
     private final Set<XmlPath> rewritten = new HashSet<XmlPath>();
 
+    private Mark start;
+
     @Override
     public void startDocument(XmlScanner scanner) {
         super.startDocument(scanner);
         rewritten.clear();
+        start = getPatcher().mark();
     }
 
     @Override
@@ -40,14 +44,17 @@ public abstract class InsertElement extends XmlVisitor {
             doInsert(parent);
         }
 
-        mark(0);
+        start.set();
     }
 
     private void doInsert(XmlPath parent) {
-        String indent = getBetween(0, mark(1));
+        Mark r = start.toCurrent();
+
+        String indent = r.verbatim();
         String inserted = insert();
         if (inserted!=null && inserted.length()!=0) {
-            getPom().replaceBetween(0,1,indent+inserted+indent);
+            r.replace(indent+inserted+indent);
+            r.clear();
             rewritten.add(parent);
         }
     }
@@ -59,7 +66,7 @@ public abstract class InsertElement extends XmlVisitor {
             doInsert(getPath());
         }
 
-        mark(0);
+        start.set();
     }
 
     protected abstract String insert();

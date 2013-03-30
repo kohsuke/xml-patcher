@@ -1,7 +1,9 @@
 package org.kohsuke.maven.rewrite.edit;
 
 import com.google.common.base.Predicate;
+import org.kohsuke.maven.rewrite.Mark;
 import org.kohsuke.maven.rewrite.XmlPath;
+import org.kohsuke.maven.rewrite.XmlScanner;
 import org.kohsuke.maven.rewrite.XmlVisitor;
 
 /**
@@ -11,23 +13,32 @@ import org.kohsuke.maven.rewrite.XmlVisitor;
  */
 public abstract class ReplaceElementText extends XmlVisitor {
     private final Predicate<XmlPath> matcher;
+    private Mark m;
 
     public ReplaceElementText(Predicate<XmlPath> matcher) {
         this.matcher = matcher;
     }
 
     @Override
+    public void startDocument(XmlScanner scanner) {
+        super.startDocument(scanner);
+        m = getPatcher().mark();
+    }
+
+    @Override
     public void startElement() {
         if (matcher.apply(getPath()))
-            mark(0);
+            m.set();
     }
 
     @Override
     public void endElement() {
         if (matcher.apply(getPath())) {
-            String current = getBetween(0, mark(1));
+            Mark r = m.toCurrent();
+            String current = r.verbatim();
             String updated = replace(current);
-            getPom().replaceBetween(0, 1, updated);
+            r.replace(updated);
+            r.clear();
         }
     }
 

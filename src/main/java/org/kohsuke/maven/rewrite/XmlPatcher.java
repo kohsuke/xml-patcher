@@ -36,6 +36,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.io.Writer;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Represents the modified xml file. Note: implementations of the StAX API (JSR-173) are not good round-trip rewriting
@@ -43,86 +45,38 @@ import java.io.Writer;
  * characters will be stripped.  Current implementations do not keep &quot; and &apos; characters consistent.
  *
  * @author Stephen Connolly
+ * @author Kohsuke Kawaguchi
  */
-public class XmlPatcher
-    implements XMLEventReader
-{
-
-// ------------------------------ FIELDS ------------------------------
+public class XmlPatcher implements XMLEventReader {
 
     /**
-     * Field MAX_MARKS
+     * XML being edited.
      */
-    private static final int MAX_MARKS = 3;
+    /*package*/ final StringBuilder xml;
 
-    /**
-     * Field xml
-     */
-    private final StringBuilder xml;
-
-    /**
-     * Field modified
-     */
     private boolean modified = false;
 
-    /**
-     * Field factory
-     */
     private XMLInputFactory factory;
 
-    /**
-     * Field nextStart
-     */
-    private int nextStart = 0;
+    /*package*/ final Set<Mark> marks = new HashSet<Mark>();
 
     /**
-     * Field nextEnd
+     * Position of the last {@link XMLEvent}
      */
-    private int nextEnd = 0;
+    private final Mark lastPos = new Mark(this);
 
     /**
-     * Field markStart
+     * Position of the upcoming {@link XMLEvent} that we've peaked
      */
-    private int[] markStart = new int[MAX_MARKS];
+    private final Mark nextPos = new Mark(this);
 
     /**
-     * Field markEnd
+     * How far does {@link #xml} diverged from the current reading head of {@link #backing}?
      */
-    private int[] markEnd = new int[MAX_MARKS];
+    private int cumulativeDelta=0;
 
-    /**
-     * Field markDelta
-     */
-    private int[] markDelta = new int[MAX_MARKS];
-
-    /**
-     * Field lastStart
-     */
-    private int lastStart = -1;
-
-    /**
-     * Field lastEnd
-     */
-    private int lastEnd;
-
-    /**
-     * Field lastDelta
-     */
-    private int lastDelta = 0;
-
-    /**
-     * Field next
-     */
     private XMLEvent next = null;
 
-    /**
-     * Field nextDelta
-     */
-    private int nextDelta = 0;
-
-    /**
-     * Field backing
-     */
     private XMLEventReader backing;
 
 // --------------------------- CONSTRUCTORS ---------------------------
@@ -160,22 +114,14 @@ public class XmlPatcher
      * @throws XMLStreamException when things go wrong.
      */
     public void rewind()
-        throws XMLStreamException
-    {
-        if (factory==null)
+            throws XMLStreamException {
+        if (factory == null)
             factory = createDefaultXMLInputFactory();
-        backing = factory.createXMLEventReader( new StringReader( xml.toString() ) );
-        nextEnd = 0;
-        nextDelta = 0;
-        for ( int i = 0; i < MAX_MARKS; i++ )
-        {
-            markStart[i] = -1;
-            markEnd[i] = -1;
-            markDelta[i] = 0;
-        }
-        lastStart = -1;
-        lastEnd = -1;
-        lastDelta = 0;
+        backing = factory.createXMLEventReader(new StringReader(xml.toString()));
+        marks.clear();
+        cumulativeDelta = 0;
+        nextPos.set(0, 0);
+        lastPos.clear();
         next = null;
     }
 
@@ -186,12 +132,9 @@ public class XmlPatcher
      *
      * @return Value for property 'modified'.
      */
-    public boolean isModified()
-    {
+    public boolean isModified() {
         return modified;
     }
-
-// ------------------------ INTERFACE METHODS ------------------------
 
 // --------------------- Interface Iterator ---------------------
 
@@ -199,14 +142,10 @@ public class XmlPatcher
     /**
      * {@inheritDoc}
      */
-    public Object next()
-    {
-        try
-        {
+    public Object next() {
+        try {
             return nextEvent();
-        }
-        catch ( XMLStreamException e )
-        {
+        } catch (XMLStreamException e) {
             return null;
         }
     }
@@ -214,8 +153,7 @@ public class XmlPatcher
     /**
      * {@inheritDoc}
      */
-    public void remove()
-    {
+    public void remove() {
         throw new UnsupportedOperationException();
     }
 
@@ -225,18 +163,12 @@ public class XmlPatcher
      * {@inheritDoc}
      */
     public XMLEvent nextEvent()
-        throws XMLStreamException
-    {
-        try
-        {
+            throws XMLStreamException {
+        try {
             return next;
-        }
-        finally
-        {
+        } finally {
             next = null;
-            lastStart = nextStart;
-            lastEnd = nextEnd;
-            lastDelta = nextDelta;
+            lastPos.set(nextPos);
         }
     }
 
@@ -244,8 +176,7 @@ public class XmlPatcher
      * {@inheritDoc}
      */
     public XMLEvent peek()
-        throws XMLStreamException
-    {
+            throws XMLStreamException {
         return backing.peek();
     }
 
@@ -253,8 +184,7 @@ public class XmlPatcher
      * {@inheritDoc}
      */
     public String getElementText()
-        throws XMLStreamException
-    {
+            throws XMLStreamException {
         return backing.getElementText();
     }
 
@@ -262,37 +192,31 @@ public class XmlPatcher
      * {@inheritDoc}
      */
     public XMLEvent nextTag()
-        throws XMLStreamException
-    {
-        while ( hasNext() )
-        {
+            throws XMLStreamException {
+        while (hasNext()) {
             XMLEvent e = nextEvent();
-            if ( e.isCharacters() && !( (Characters) e ).isWhiteSpace() )
-            {
-                throw new XMLStreamException( "Unexpected text" );
+            if (e.isCharacters() && !((Characters) e).isWhiteSpace()) {
+                throw new XMLStreamException("Unexpected text");
             }
-            if ( e.isStartElement() || e.isEndElement() )
-            {
+            if (e.isStartElement() || e.isEndElement()) {
                 return e;
             }
         }
-        throw new XMLStreamException( "Unexpected end of Document" );
+        throw new XMLStreamException("Unexpected end of Document");
     }
 
     /**
      * {@inheritDoc}
      */
-    public Object getProperty( String name )
-    {
-        return backing.getProperty( name );
+    public Object getProperty(String name) {
+        return backing.getProperty(name);
     }
 
     /**
      * {@inheritDoc}
      */
     public void close()
-        throws XMLStreamException
-    {
+            throws XMLStreamException {
         backing.close();
         next = null;
         backing = null;
@@ -305,34 +229,8 @@ public class XmlPatcher
      *
      * @return a copy of the backing string buffer.
      */
-    public StringBuilder asStringBuilder()
-    {
-        return new StringBuilder( xml.toString() );
-    }
-
-    /**
-     * Clears the mark.
-     *
-     * @param index the mark to clear.
-     */
-    public void clearMark( int index )
-    {
-        markStart[index] = -1;
-    }
-
-    /**
-     * the verbatim text of the current element when {@link #mark(int)} was called.
-     *
-     * @param index The mark index.
-     * @return the current element when {@link #mark(int)} was called.
-     */
-    public String getMarkVerbatim( int index )
-    {
-        if ( hasMark( index ) )
-        {
-            return xml.substring( markDelta[index] + markStart[index], markDelta[index] + markEnd[index] );
-        }
-        return "";
+    public StringBuilder asStringBuilder() {
+        return new StringBuilder(xml.toString());
     }
 
     /**
@@ -340,11 +238,9 @@ public class XmlPatcher
      *
      * @return the verbatim text of the element returned by {@link #peek()}.
      */
-    public String getPeekVerbatim()
-    {
-        if ( hasNext() )
-        {
-            return xml.substring( nextDelta + nextStart, nextDelta + nextEnd );
+    public String getPeekVerbatim() {
+        if (hasNext()) {
+            return nextPos.verbatim();
         }
         return "";
     }
@@ -352,77 +248,57 @@ public class XmlPatcher
     /**
      * {@inheritDoc}
      */
-    public boolean hasNext()
-    {
-        if ( next != null )
-        {
+    public boolean hasNext() {
+        if (next != null) {
             // fast path
             return true;
         }
-        if ( !backing.hasNext() )
-        {
+        if (!backing.hasNext()) {
             // fast path
             return false;
         }
-        try
-        {
+        try {
             next = backing.nextEvent();
-            nextStart = nextEnd;
-            if ( backing.hasNext() )
-            {
-                nextEnd = backing.peek().getLocation().getCharacterOffset();
+            int s = nextPos.e;
+            int e = s;
+            if (backing.hasNext()) {
+                e = backing.peek().getLocation().getCharacterOffset()+cumulativeDelta;
             }
 
-            if ( nextEnd != -1 )
-            {
-                if ( !next.isCharacters() )
-                {
-                    while ( nextStart < nextEnd && nextStart < xml.length() &&
-                        ( c( nextStart ) == '\n' || c( nextStart ) == '\r' ) )
-                    {
-                        nextStart++;
+            if (e != -1) {
+                if (!next.isCharacters()) {
+                    while (s < e && s < xml.length() &&
+                            (c(s) == '\n' || c(s) == '\r')) {
+                        s++;
+                    }
+                    nextPos.set(s, e);
+                } else {
+                    nextPos.set(s, e);
+                    while (nextEndIncludesNextEvent() || nextEndIncludesNextEndElement()) {
+                        nextPos.grow(-1);
                     }
                 }
-                else
-                {
-                    while ( nextEndIncludesNextEvent() || nextEndIncludesNextEndElement() )
-                    {
-                        nextEnd--;
-                    }
-                }
+            } else {
+                nextPos.set(s, e);
             }
-            return nextStart < xml.length();
-        }
-        catch ( XMLStreamException e )
-        {
+            return s < xml.length();
+        } catch (XMLStreamException e) {
             return false;
         }
     }
 
     /**
-     * Getter for property 'verbatim'.
-     *
-     * @return Value for property 'verbatim'.
+     * Returns a mark that points to the last returned {@link XMLEvent}
      */
-    public String getVerbatim()
-    {
-        if ( lastStart >= 0 && lastEnd >= lastStart )
-        {
-            return xml.substring( lastDelta + lastStart, lastDelta + lastEnd );
-        }
-        return "";
+    public Mark getLast() {
+        return lastPos;
     }
 
     /**
-     * Sets a mark to the current event.
-     *
-     * @param index the mark to set.
+     * Creates a new mark.
      */
-    public void mark( int index )
-    {
-        markStart[index] = lastStart;
-        markEnd[index] = lastEnd;
-        markDelta[index] = lastDelta;
+    public Mark mark() {
+        return new Mark(this);
     }
 
     /**
@@ -430,9 +306,8 @@ public class XmlPatcher
      *
      * @return <code>true</code> if nextEnd is including the start of and end element.
      */
-    private boolean nextEndIncludesNextEndElement()
-    {
-        return ( nextEnd > nextStart + 2 && nextEnd - 2 < xml.length() && c( nextEnd - 2 ) == '<' );
+    private boolean nextEndIncludesNextEndElement() {
+        return nextPos.length() > 2 && c(nextPos.e - 2) == '<';   // ???
     }
 
     /**
@@ -440,10 +315,8 @@ public class XmlPatcher
      *
      * @return <code>true</code> if nextEnd is including the start of the next event.
      */
-    private boolean nextEndIncludesNextEvent()
-    {
-        return nextEnd > nextStart + 1 && nextEnd - 2 < xml.length() &&
-            ( c( nextEnd - 1 ) == '<' || c( nextEnd - 1 ) == '&' );
+    private boolean nextEndIncludesNextEvent() {
+        return nextPos.length() > 1 && (c(nextPos.e - 1) == '<' || c(nextPos.e - 1) == '&');   // ???
     }
 
     /**
@@ -452,9 +325,8 @@ public class XmlPatcher
      * @param index the index.
      * @return char The character.
      */
-    private char c( int index )
-    {
-        return xml.charAt( nextDelta + index );
+    private char c(int index) {
+        return xml.charAt(index);
     }
 
     /**
@@ -462,146 +334,37 @@ public class XmlPatcher
      *
      * @param replacement The replacement.
      */
-    public void replace( String replacement )
-    {
-        if ( lastStart < 0 || lastEnd < lastStart )
-        {
-            throw new IllegalStateException();
-        }
-        int start = lastDelta + lastStart;
-        int end = lastDelta + lastEnd;
-        if ( replacement.equals(xml.substring(start, end)) )
-        {
-            return;
-        }
-        xml.replace(start, end, replacement);
-        int delta = replacement.length() - lastEnd - lastStart;
-        nextDelta += delta;
-        for ( int i = 0; i < MAX_MARKS; i++ )
-        {
-            if ( hasMark( i ) && lastStart == markStart[i] && markEnd[i] == lastEnd )
-            {
-                markEnd[i] += delta;
-            }
-        }
-        lastEnd += delta;
-        modified = true;
+    public void replace(String replacement) {
+        lastPos.replace(replacement);
+    }
+
+    public String getBetween(Mark a, Mark b) {
+        return Mark.between(a, b).verbatim();
     }
 
     /**
-     * Returns <code>true</code> if the specified mark is defined.
+     * Replaces all content between two marks with the replacement text.
      *
-     * @param index The mark.
-     * @return <code>true</code> if the specified mark is defined.
-     */
-    public boolean hasMark( int index )
-    {
-        return markStart[index] != -1;
-    }
-
-    public String getBetween( int index1, int index2 )
-    {
-        if ( !hasMark( index1 ) || !hasMark( index2 ) || markStart[index1] > markStart[index2] )
-        {
-            throw new IllegalStateException();
-        }
-        int start = markDelta[index1] + markEnd[index1];
-        int end = markDelta[index2] + markStart[index2];
-        return xml.substring( start, end );
-
-    }
-
-    /**
-     * Replaces all content between marks index1 and index2 with the replacement text.
-     *
-     * @param index1      The event mark to replace after.
-     * @param index2      The event mark to replace before.
      * @param replacement The replacement.
      */
-    public void replaceBetween( int index1, int index2, String replacement )
-    {
-        if ( !hasMark( index1 ) || !hasMark( index2 ) || markStart[index1] > markStart[index2] )
-        {
-            throw new IllegalStateException();
-        }
-        int start = markDelta[index1] + markEnd[index1];
-        int end = markDelta[index2] + markStart[index2];
-        if ( replacement.equals(xml.substring(start, end)) )
-        {
-            return;
-        }
-        xml.replace(start, end, replacement);
-        int delta = replacement.length() - ( end - start );
-        nextDelta += delta;
-
-        for ( int i = 0; i < MAX_MARKS; i++ )
-        {
-            if ( i == index1 || i == index2 || markStart[i] == -1 )
-            {
-                continue;
-            }
-            if ( markStart[i] > markStart[index2] )
-            {
-                markDelta[i] += delta;
-            }
-            else if ( markStart[i] == markEnd[index1] && markEnd[i] == markStart[index1] )
-            {
-                markDelta[i] += delta;
-            }
-            else if ( markStart[i] > markEnd[index1] || markEnd[i] < markStart[index2] )
-            {
-                markStart[i] = -1;
-            }
-        }
-
-        modified = true;
+    public void replaceBetween(Mark a, Mark b, String replacement) {
+        Mark.between(a, b).replace(replacement);
     }
 
     /**
-     * Replaces the specified marked element with the replacement text.
-     *
-     * @param index       The mark.
-     * @param replacement The replacement.
+     * Update all other marks when one mark has changed its content.
      */
-    public void replaceMark( int index, String replacement )
-    {
-        if ( !hasMark( index ) )
-        {
-            throw new IllegalStateException();
+    /*package*/ void updateMarks(Mark changed, int delta) {
+        if (delta == 0) return;
+
+        nextPos.update(changed, delta);
+        lastPos.update(changed, delta);
+        for (Mark m : marks) {
+            if (m != changed)
+                m.update(changed, delta);
         }
-        int start = markDelta[index] + markStart[index];
-        int end = markDelta[index] + markEnd[index];
-        if ( replacement.equals(xml.substring(start, end)) )
-        {
-            return;
-        }
-        xml.replace(start, end, replacement);
-        int delta = replacement.length() - markEnd[index] - markStart[index];
-        nextDelta += delta;
-        if ( lastStart == markStart[index] && lastEnd == markEnd[index] )
-        {
-            lastEnd += delta;
-        }
-        else if ( lastStart > markStart[index] )
-        {
-            lastDelta += delta;
-        }
-        for ( int i = 0; i < MAX_MARKS; i++ )
-        {
-            if ( i == index || markStart[i] == -1 )
-            {
-                continue;
-            }
-            if ( markStart[i] > markStart[index] )
-            {
-                markDelta[i] += delta;
-            }
-            else if ( markStart[i] == markStart[index] && markEnd[i] == markEnd[index] )
-            {
-                markDelta[i] += delta;
-            }
-        }
-        markEnd[index] += delta;
+        changed.grow(delta);
+        cumulativeDelta+=delta;
         modified = true;
     }
 

@@ -10,8 +10,12 @@ public abstract class XmlVisitor {
         return scanner;
     }
 
-    public XmlPatcher getPom() {
+    public XmlPatcher getPatcher() {
         return scanner.getPom();
+    }
+
+    protected XmlPath getPath() {
+        return  getScanner().getPath();
     }
 
     /**
@@ -23,16 +27,4 @@ public abstract class XmlVisitor {
     public void startElement() {}
     public void endElement() {}
 
-    protected int mark(int i) {
-        getPom().mark(i);
-        return i;
-    }
-
-    protected String getBetween(int m1, int m2) {
-        return getPom().getBetween(m1, m2);
-    }
-
-    protected XmlPath getPath() {
-        return  getScanner().getPath();
-    }
 }
