@@ -4,13 +4,27 @@
   <parent>
     <groupId>org.kohsuke</groupId>
     <artifactId>pom</artifactId>
-    <version>3</version>
+    <version>4</version>
   </parent>
 
   <artifactId>xml-patcher</artifactId>
   <version>1.0-SNAPSHOT</version>
   <name>XML Patcher</name>
   <description>High fidelity XML patching</description>
+
+  <scm>
+    <connection>scm:git:git@github.com/kohsuke/${project.artifactId}.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/kohsuke/${project.artifactId}.git</developerConnection>
+    <url>http://${project.artifactId}.kohsuke.org/</url>
+  </scm>
+
+  <distributionManagement>
+    <site>
+      <id>github-pages</id>
+      <url>gitsite:git@github.com/kohsuke/${project.artifactId}.git</url>
+    </site>
+  </distributionManagement>
+
 
   <dependencies>
     <dependency>
