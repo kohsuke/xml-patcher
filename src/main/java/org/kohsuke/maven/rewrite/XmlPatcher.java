@@ -79,6 +79,9 @@ public class XmlPatcher implements XMLEventReader {
 
     private XMLEventReader backing;
 
+    private XmlPath path;
+
+
 // --------------------------- CONSTRUCTORS ---------------------------
 
     public XmlPatcher(StringBuilder xml) {
@@ -125,7 +128,41 @@ public class XmlPatcher implements XMLEventReader {
         next = null;
     }
 
-// --------------------- GETTER / SETTER METHODS ---------------------
+
+    /**
+     * Gets the current location in the XML document.
+     */
+    public XmlPath getPath() {
+        return path;
+    }
+
+    public boolean scan(XmlVisitor v) throws XMLStreamException {
+        if (this.path!=null)
+            throw new IllegalStateException("XmlScanner is not re-entrant");
+        this.path = null;
+        rewind();
+
+        try {
+            rewind();
+            v.startDocument(this);
+
+            while (hasNext()) {
+                XMLEvent event = nextEvent();
+                if (event.isStartElement()) {
+                    path = new XmlPath(path, event.asStartElement());
+                    v.startElement();
+                }
+                if (event.isEndElement()) {
+                    v.endElement();
+                    path = path.getParent();
+                }
+            }
+            return isModified();
+        } finally {
+            this.path = null;
+        }
+    }
+
 
     /**
      * Getter for property 'modified'.
@@ -135,9 +172,6 @@ public class XmlPatcher implements XMLEventReader {
     public boolean isModified() {
         return modified;
     }
-
-// --------------------- Interface Iterator ---------------------
-
 
     /**
      * {@inheritDoc}

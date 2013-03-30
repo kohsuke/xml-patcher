@@ -2,8 +2,8 @@ package org.kohsuke.maven.rewrite.edit;
 
 import com.google.common.base.Predicate;
 import org.kohsuke.maven.rewrite.Mark;
+import org.kohsuke.maven.rewrite.XmlPatcher;
 import org.kohsuke.maven.rewrite.XmlPath;
-import org.kohsuke.maven.rewrite.XmlScanner;
 import org.kohsuke.maven.rewrite.XmlVisitor;
 
 import java.util.HashSet;
@@ -27,7 +27,7 @@ public abstract class InsertElement extends XmlVisitor {
     private Mark start;
 
     @Override
-    public void startDocument(XmlScanner scanner) {
+    public void startDocument(XmlPatcher scanner) {
         super.startDocument(scanner);
         rewritten.clear();
         start = getPatcher().mark();
