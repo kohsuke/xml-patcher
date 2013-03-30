@@ -24,7 +24,6 @@ import org.codehaus.plexus.util.IOUtil;
 import org.codehaus.plexus.util.WriterFactory;
 import org.codehaus.plexus.util.xml.XmlStreamReader;
 import org.codehaus.stax2.XMLInputFactory2;
-import org.xml.sax.XMLReader;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
@@ -32,12 +31,14 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.Characters;
 import javax.xml.stream.events.XMLEvent;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.io.Writer;
 
 /**
- * Represents the modified pom file. Note: implementations of the StAX API (JSR-173) are not good round-trip rewriting
+ * Represents the modified xml file. Note: implementations of the StAX API (JSR-173) are not good round-trip rewriting
  * <b>while</b> keeping all unchanged bytes in the file as is.  For example, the StAX API specifies that <code>CR</code>
  * characters will be stripped.  Current implementations do not keep &quot; and &apos; characters consistent.
  *
@@ -55,9 +56,9 @@ public class XmlPatcher
     private static final int MAX_MARKS = 3;
 
     /**
-     * Field pom
+     * Field xml
      */
-    private final StringBuilder pom;
+    private final StringBuilder xml;
 
     /**
      * Field modified
@@ -126,14 +127,18 @@ public class XmlPatcher
 
 // --------------------------- CONSTRUCTORS ---------------------------
 
-    public XmlPatcher(StringBuilder pom) {
-        this.pom = pom;
+    public XmlPatcher(StringBuilder xml) {
+        this.xml = xml;
     }
 
     public XmlPatcher(File f) throws IOException {
-        XmlStreamReader r = new XmlStreamReader(f);
+        this(new FileInputStream(f));
+    }
+
+    public XmlPatcher(InputStream in) throws IOException {
+        XmlStreamReader r = new XmlStreamReader(in);
         try {
-            this.pom = new StringBuilder(IOUtils.toString(r));
+            this.xml = new StringBuilder(IOUtils.toString(r));
         } finally {
             r.close();
         }
@@ -159,7 +164,7 @@ public class XmlPatcher
     {
         if (factory==null)
             factory = createDefaultXMLInputFactory();
-        backing = factory.createXMLEventReader( new StringReader( pom.toString() ) );
+        backing = factory.createXMLEventReader( new StringReader( xml.toString() ) );
         nextEnd = 0;
         nextDelta = 0;
         for ( int i = 0; i < MAX_MARKS; i++ )
@@ -302,7 +307,7 @@ public class XmlPatcher
      */
     public StringBuilder asStringBuilder()
     {
-        return new StringBuilder( pom.toString() );
+        return new StringBuilder( xml.toString() );
     }
 
     /**
@@ -325,7 +330,7 @@ public class XmlPatcher
     {
         if ( hasMark( index ) )
         {
-            return pom.substring( markDelta[index] + markStart[index], markDelta[index] + markEnd[index] );
+            return xml.substring( markDelta[index] + markStart[index], markDelta[index] + markEnd[index] );
         }
         return "";
     }
@@ -339,7 +344,7 @@ public class XmlPatcher
     {
         if ( hasNext() )
         {
-            return pom.substring( nextDelta + nextStart, nextDelta + nextEnd );
+            return xml.substring( nextDelta + nextStart, nextDelta + nextEnd );
         }
         return "";
     }
@@ -372,7 +377,7 @@ public class XmlPatcher
             {
                 if ( !next.isCharacters() )
                 {
-                    while ( nextStart < nextEnd && nextStart < pom.length() &&
+                    while ( nextStart < nextEnd && nextStart < xml.length() &&
                         ( c( nextStart ) == '\n' || c( nextStart ) == '\r' ) )
                     {
                         nextStart++;
@@ -386,7 +391,7 @@ public class XmlPatcher
                     }
                 }
             }
-            return nextStart < pom.length();
+            return nextStart < xml.length();
         }
         catch ( XMLStreamException e )
         {
@@ -403,7 +408,7 @@ public class XmlPatcher
     {
         if ( lastStart >= 0 && lastEnd >= lastStart )
         {
-            return pom.substring( lastDelta + lastStart, lastDelta + lastEnd );
+            return xml.substring( lastDelta + lastStart, lastDelta + lastEnd );
         }
         return "";
     }
@@ -427,7 +432,7 @@ public class XmlPatcher
      */
     private boolean nextEndIncludesNextEndElement()
     {
-        return ( nextEnd > nextStart + 2 && nextEnd - 2 < pom.length() && c( nextEnd - 2 ) == '<' );
+        return ( nextEnd > nextStart + 2 && nextEnd - 2 < xml.length() && c( nextEnd - 2 ) == '<' );
     }
 
     /**
@@ -437,7 +442,7 @@ public class XmlPatcher
      */
     private boolean nextEndIncludesNextEvent()
     {
-        return nextEnd > nextStart + 1 && nextEnd - 2 < pom.length() &&
+        return nextEnd > nextStart + 1 && nextEnd - 2 < xml.length() &&
             ( c( nextEnd - 1 ) == '<' || c( nextEnd - 1 ) == '&' );
     }
 
@@ -449,7 +454,7 @@ public class XmlPatcher
      */
     private char c( int index )
     {
-        return pom.charAt( nextDelta + index );
+        return xml.charAt( nextDelta + index );
     }
 
     /**
@@ -465,11 +470,11 @@ public class XmlPatcher
         }
         int start = lastDelta + lastStart;
         int end = lastDelta + lastEnd;
-        if ( replacement.equals( pom.substring( start, end ) ) )
+        if ( replacement.equals(xml.substring(start, end)) )
         {
             return;
         }
-        pom.replace( start, end, replacement );
+        xml.replace(start, end, replacement);
         int delta = replacement.length() - lastEnd - lastStart;
         nextDelta += delta;
         for ( int i = 0; i < MAX_MARKS; i++ )
@@ -502,7 +507,7 @@ public class XmlPatcher
         }
         int start = markDelta[index1] + markEnd[index1];
         int end = markDelta[index2] + markStart[index2];
-        return pom.substring( start, end );
+        return xml.substring( start, end );
 
     }
 
@@ -521,11 +526,11 @@ public class XmlPatcher
         }
         int start = markDelta[index1] + markEnd[index1];
         int end = markDelta[index2] + markStart[index2];
-        if ( replacement.equals( pom.substring( start, end ) ) )
+        if ( replacement.equals(xml.substring(start, end)) )
         {
             return;
         }
-        pom.replace( start, end, replacement );
+        xml.replace(start, end, replacement);
         int delta = replacement.length() - ( end - start );
         nextDelta += delta;
 
@@ -566,11 +571,11 @@ public class XmlPatcher
         }
         int start = markDelta[index] + markStart[index];
         int end = markDelta[index] + markEnd[index];
-        if ( replacement.equals( pom.substring( start, end ) ) )
+        if ( replacement.equals(xml.substring(start, end)) )
         {
             return;
         }
-        pom.replace( start, end, replacement );
+        xml.replace(start, end, replacement);
         int delta = replacement.length() - markEnd[index] - markStart[index];
         nextDelta += delta;
         if ( lastStart == markStart[index] && lastEnd == markEnd[index] )
@@ -603,7 +608,7 @@ public class XmlPatcher
     public void writeTo(File f) throws IOException {
         Writer writer = WriterFactory.newXmlWriter(f);
         try {
-            writer.write(pom.toString());
+            writer.write(xml.toString());
         } finally {
             IOUtil.close(writer);
         }

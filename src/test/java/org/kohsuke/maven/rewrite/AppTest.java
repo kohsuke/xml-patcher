@@ -9,7 +9,7 @@ import java.io.File;
 public class AppTest {
     @Test
     public void testApp() throws Exception {
-        XmlPatcher xml = new XmlPatcher(new File("pom.xml"));
+        XmlPatcher xml = new XmlPatcher(getClass().getResourceAsStream("/foo.xml"));
 
         update(xml);
 

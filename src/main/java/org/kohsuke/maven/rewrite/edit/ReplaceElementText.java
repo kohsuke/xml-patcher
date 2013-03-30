@@ -2,7 +2,6 @@ package org.kohsuke.maven.rewrite.edit;
 
 import com.google.common.base.Predicate;
 import org.kohsuke.maven.rewrite.XmlPath;
-import org.kohsuke.maven.rewrite.XmlScanner;
 import org.kohsuke.maven.rewrite.XmlVisitor;
 
 /**
