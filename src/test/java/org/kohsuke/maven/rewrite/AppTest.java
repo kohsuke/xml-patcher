@@ -1,7 +1,7 @@
 package org.kohsuke.maven.rewrite;
 
 import org.junit.Test;
-import org.kohsuke.maven.rewrite.edit.InsertElement;
+import org.kohsuke.maven.rewrite.edit.InsertInElement;
 
 import java.io.File;
 
@@ -10,7 +10,7 @@ public class AppTest {
     public void testApp() throws Exception {
         XmlPatcher xml = new XmlPatcher(getClass().getResourceAsStream("/foo.xml"));
 
-        xml.scan(new InsertElement(PathMatchers.localNames("/project/dependencies")) {
+        xml.scan(new InsertInElement(PathMatchers.localNames("/project/dependencies")) {
             @Override
             protected String insert() {
                 return "<foo>5</foo>";

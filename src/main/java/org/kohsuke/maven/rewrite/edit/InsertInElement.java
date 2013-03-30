@@ -14,10 +14,10 @@ import java.util.Set;
  *
  * @author Kohsuke Kawaguchi
  */
-public abstract class InsertElement extends XmlVisitor {
+public abstract class InsertInElement extends XmlVisitor {
     private final Predicate<XmlPath> matcher;
 
-    public InsertElement(Predicate<XmlPath> matcher) {
+    public InsertInElement(Predicate<XmlPath> matcher) {
         this.matcher = matcher;
     }
 

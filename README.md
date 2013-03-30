@@ -32,3 +32,9 @@ The following code illustartes the typical usage of the `XmlPatcher` class
         if (xml.isModified()) {
             xml.writeTo(new File("test.xml"));
         }
+
+Credit
+------
+The code was originally developed in the Codehaus Mojo project as a part of a Maven plugin.
+I extracted it and refactored it since it has nothing to do with Maven at its core.
+As such, the code is licensed under Apache Software License 2.0
