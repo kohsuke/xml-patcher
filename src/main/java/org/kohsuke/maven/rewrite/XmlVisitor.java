@@ -10,7 +10,7 @@ public abstract class XmlVisitor {
         return scanner;
     }
 
-    public ModifiedPomXMLEventReader getPom() {
+    public XmlPatcher getPom() {
         return scanner.getPom();
     }
 

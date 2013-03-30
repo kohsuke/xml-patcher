@@ -9,16 +9,16 @@ import java.io.File;
 public class AppTest {
     @Test
     public void testApp() throws Exception {
-        ModifiedPomXMLEventReader newPom = new ModifiedPomXMLEventReader(new File("pom.xml"));
+        XmlPatcher xml = new XmlPatcher(new File("pom.xml"));
 
-        update(newPom);
+        update(xml);
 
-        if (newPom.isModified()) {
-            newPom.writeTo(new File("test.xml"));
+        if (xml.isModified()) {
+            xml.writeTo(new File("test.xml"));
         }
     }
 
-    private boolean update(ModifiedPomXMLEventReader pom) throws XMLStreamException {
+    private boolean update(XmlPatcher pom) throws XMLStreamException {
         new XmlScanner().scan(pom,new InsertElement(PathMatchers.localNames("/project/dependencies")) {
             @Override
             protected String insert() {

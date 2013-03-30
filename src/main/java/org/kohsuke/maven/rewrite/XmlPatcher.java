@@ -43,7 +43,7 @@ import java.io.Writer;
  *
  * @author Stephen Connolly
  */
-public class ModifiedPomXMLEventReader
+public class XmlPatcher
     implements XMLEventReader
 {
 
@@ -126,11 +126,11 @@ public class ModifiedPomXMLEventReader
 
 // --------------------------- CONSTRUCTORS ---------------------------
 
-    public ModifiedPomXMLEventReader( StringBuilder pom ) {
+    public XmlPatcher(StringBuilder pom) {
         this.pom = pom;
     }
 
-    public ModifiedPomXMLEventReader( File f ) throws IOException {
+    public XmlPatcher(File f) throws IOException {
         XmlStreamReader r = new XmlStreamReader(f);
         try {
             this.pom = new StringBuilder(IOUtils.toString(r));

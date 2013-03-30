@@ -8,10 +8,10 @@ import javax.xml.stream.events.XMLEvent;
  * @author Kohsuke Kawaguchi
  */
 public class XmlScanner {
-    private ModifiedPomXMLEventReader pom;
+    private XmlPatcher pom;
     private XmlPath path;
 
-    public ModifiedPomXMLEventReader getPom() {
+    public XmlPatcher getPom() {
         return pom;
     }
 
@@ -27,7 +27,7 @@ public class XmlScanner {
         return path;
     }
 
-    public boolean scan(ModifiedPomXMLEventReader pom, XmlVisitor v) throws XMLStreamException {
+    public boolean scan(XmlPatcher pom, XmlVisitor v) throws XMLStreamException {
         if (this.pom!=null)
             throw new IllegalStateException("XmlScanner is not re-entrant");
         this.pom = pom;
