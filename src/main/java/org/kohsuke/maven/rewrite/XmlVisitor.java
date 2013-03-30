@@ -1,7 +1,5 @@
 package org.kohsuke.maven.rewrite;
 
-import org.codehaus.mojo.versions.rewriting.ModifiedPomXMLEventReader;
-
 /**
  * @author Kohsuke Kawaguchi
  */

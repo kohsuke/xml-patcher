@@ -1,5 +1,3 @@
-package org.codehaus.mojo.versions.rewriting;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,25 +16,32 @@ package org.codehaus.mojo.versions.rewriting;
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.kohsuke.maven.rewrite;
 
-import org.apache.maven.model.Model;
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
-import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
+import com.ctc.wstx.stax.WstxInputFactory;
+import org.apache.commons.io.IOUtils;
+import org.codehaus.plexus.util.IOUtil;
+import org.codehaus.plexus.util.WriterFactory;
+import org.codehaus.plexus.util.xml.XmlStreamReader;
+import org.codehaus.stax2.XMLInputFactory2;
+import org.xml.sax.XMLReader;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.Characters;
 import javax.xml.stream.events.XMLEvent;
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.io.Writer;
 
 /**
  * Represents the modified pom file. Note: implementations of the StAX API (JSR-173) are not good round-trip rewriting
  * <b>while</b> keeping all unchanged bytes in the file as is.  For example, the StAX API specifies that <code>CR</code>
  * characters will be stripped.  Current implementations do not keep &quot; and &apos; characters consistent.
  *
- * @author Stephen Connollya
+ * @author Stephen Connolly
  */
 public class ModifiedPomXMLEventReader
     implements XMLEventReader
@@ -62,7 +67,7 @@ public class ModifiedPomXMLEventReader
     /**
      * Field factory
      */
-    private final XMLInputFactory factory;
+    private XMLInputFactory factory;
 
     /**
      * Field nextStart
@@ -121,19 +126,27 @@ public class ModifiedPomXMLEventReader
 
 // --------------------------- CONSTRUCTORS ---------------------------
 
-    /**
-     * Constructor ModifiedPomXMLEventReader creates a new ModifiedPomXMLEventReader instance.
-     *
-     * @param pom     of type StringBuilder
-     * @param factory of type XMLInputFactory
-     * @throws XMLStreamException when
-     */
-    public ModifiedPomXMLEventReader( StringBuilder pom, XMLInputFactory factory )
-        throws XMLStreamException
-    {
+    public ModifiedPomXMLEventReader( StringBuilder pom ) {
         this.pom = pom;
+    }
+
+    public ModifiedPomXMLEventReader( File f ) throws IOException {
+        XmlStreamReader r = new XmlStreamReader(f);
+        try {
+            this.pom = new StringBuilder(IOUtils.toString(r));
+        } finally {
+            r.close();
+        }
+    }
+
+    private static XMLInputFactory2 createDefaultXMLInputFactory() {
+        XMLInputFactory2 xif = new WstxInputFactory();
+        xif.setProperty(XMLInputFactory2.P_PRESERVE_LOCATION, Boolean.TRUE);
+        return xif;
+    }
+
+    public void setFactory(XMLInputFactory factory) {
         this.factory = factory;
-        rewind();
     }
 
     /**
@@ -144,6 +157,8 @@ public class ModifiedPomXMLEventReader
     public void rewind()
         throws XMLStreamException
     {
+        if (factory==null)
+            factory = createDefaultXMLInputFactory();
         backing = factory.createXMLEventReader( new StringReader( pom.toString() ) );
         nextEnd = 0;
         nextDelta = 0;
@@ -585,11 +600,13 @@ public class ModifiedPomXMLEventReader
         modified = true;
     }
 
-    public Model parse()
-        throws IOException, XmlPullParserException
-    {
-        MavenXpp3Reader reader = new MavenXpp3Reader();
-        return reader.read( new StringReader( pom.toString() ) );
-    }
+    public void writeTo(File f) throws IOException {
+        Writer writer = WriterFactory.newXmlWriter(f);
+        try {
+            writer.write(pom.toString());
+        } finally {
+            IOUtil.close(writer);
+        }
 
+    }
 }

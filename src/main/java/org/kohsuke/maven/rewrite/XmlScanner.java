@@ -1,7 +1,5 @@
 package org.kohsuke.maven.rewrite;
 
-import org.codehaus.mojo.versions.rewriting.ModifiedPomXMLEventReader;
-
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
@@ -12,7 +10,6 @@ import javax.xml.stream.events.XMLEvent;
 public class XmlScanner {
     private ModifiedPomXMLEventReader pom;
     private XmlPath path;
-
 
     public ModifiedPomXMLEventReader getPom() {
         return pom;
